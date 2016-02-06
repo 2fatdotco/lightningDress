@@ -17,57 +17,42 @@ var rpio = require('rpio');
 
 var pin = 12;           /* P12/GPIO18 */
 var range = 1024;       /* LEDs can quickly hit max brightness, so only use */
-var max = 512;          /*   the bottom 8th of a larger scale */
+var max = 768;          /*   the bottom 8th of a larger scale */
 var clockdiv = 8;       /* Clock divider (PWM refresh rate), 8 == 2.4MHz */
-var interval = 5;       /* setInterval timer, speed of pulses */
-var times = 2;          /* How many times to pulse before exiting */
+var stepSize = 20;
 
-/*
- * Enable PWM on the chosen pin and set the clock and range.
- */
-rpio.open(pin, rpio.PWM);
-rpio.pwmSetClockDivider(clockdiv);
-rpio.pwmSetRange(pin, range);
-
-/*
- * Repeatedly pulse from low to high and back again until times runs out.
- */
-// var direction = 1;
-// var data = 0;
-// var pulse = setInterval(function() {
-//         console.log('Changing:',data,direction);
-        rpio.pwmSetData(pin, data);
-        // if (data === 0) {
-                // direction = 1;
-                // if (times-- === 0) {
-                        // clearInterval(pulse);
-                        rpio.open(pin, rpio.INPUT);
-                //         return;
-                // }
-//         } else if (data === max) {
-//                 direction = -1;
-//         }
-//         data += direction;
-// }, interval, data, direction, times);
-
+// rpio.open(pin, rpio.INPUT);
 
 
 function Dress(){
-	this.brightness = 10;
+	this.brightness = stepSize;
 	return this;
 }
 
 Dress.prototype.updateHardware = function(){
 	console.log('Dress brighness is now at',this.brightness);
+	rpio.pwmSetData(pin, this.brightness);
 	return;
 };
 
+Dress.prototype.off = function(){
+        this.brightness = 0;
+        this.updateHardware();
+        return;
+};
+
+Dress.prototype.max = function(){
+        this.brightness = max;
+        this.updateHardware();
+        return;
+};
+
 Dress.prototype.dim = function(){
-	if (this.brightness <= 0){
-		return;
+	if (this.brightness <= -stepSize){
+		this.brightness = 0;
 	}
 	else {
-		this.brightness--;
+		this.brightness = this.brightness - stepSize;
 	}
 
 	this.updateHardware();
@@ -75,15 +60,23 @@ Dress.prototype.dim = function(){
 };
 
 Dress.prototype.illuminate = function(){
-	if (this.brightness >= 100){
-		return;
+	if (this.brightness+stepSize >= max){
+		this.brightness = max;
 	}
 	else {
-		this.brightness++;
+		this.brightness = this.brightness+stepSize;
 	}
 
 	this.updateHardware();
 	return;
+};
+
+Dress.prototype.explode = function(){
+
+        this.brightness = max;
+        this.updateHardware();
+
+        return;
 };
 
 
@@ -93,6 +86,10 @@ var socket= require('socket.io-client')('http://localhost:1337');
 
 socket.on('connect', function(){
 	console.log('I be the dress.  I be connected!');
+	rpio.open(pin, rpio.PWM);
+	rpio.pwmSetClockDivider(clockdiv);
+	rpio.pwmSetRange(pin, range);
+
 });
 
 socket.on('attendance', console.log);
@@ -109,6 +106,28 @@ socket.on('down', function(){
 	return;
 });
 
+
+socket.on('level', function(info){
+
+	switch (info.cmd){
+		case 'down':
+		        lightningDress.dim();
+		break;
+                case 'up':
+                        lightningDress.illuminate();
+                break;
+                case 'off':
+                        lightningDress.off();
+                break;
+                case 'max':
+                        lightningDress.max();
+                break;
+
+		default:break;
+	}
+
+        return;
+});
 
 socket.on('disconnect', function(){
 	console.log('Lightning Dress OUT!');

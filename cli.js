@@ -19,13 +19,24 @@ function Tools(){
 
 Tools.prototype.up = function(){
 	console.log('Asking dress to get brighter');
-	socketServer.emit('up');
+	socketServer.emit('level',{cmd:'up'});
 };
 
 Tools.prototype.down = function(){
 	console.log('Asking dress to dim');
-	socketServer.emit('down');
+	socketServer.emit('level',{cmd:'down'});
 };
+
+Tools.prototype.off = function(){
+        console.log('Turning dress off.');
+        socketServer.emit('level',{cmd:'off'});
+};
+
+Tools.prototype.max = function(){
+        console.log('Putting dress on full blast');
+        socketServer.emit('level',{cmd:'max'});
+};
+
 
 var tools = new Tools();
 
